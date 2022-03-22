@@ -4,17 +4,19 @@
   "description": "Full Stack Open 2022 - Part 4 Exercises",
   "main": "index.js",
   "scripts": {
-    "test": "jest --verbose",
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "test": "cross-env NODE_ENV=test jest --verbose --runInBand --forceExit",
+    "start": "cross-env NODE_ENV=production node index.js",
+    "dev": "cross-env NODE_ENV=development nodemon index.js",
     "lint": "eslint ."
   },
   "author": "Thushan Perera",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
+    "express-async-errors": "^3.1.1",
     "http": "^0.0.1-security",
     "lodash": "^4.17.21",
     "mongoose": "^6.2.7",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "eslint": "^8.11.0",
     "jest": "^27.5.1",
-    "nodemon": "^2.0.15"
+    "nodemon": "^2.0.15",
+    "supertest": "^6.2.2"
   }
 }
