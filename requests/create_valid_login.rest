@@ -1,0 +1,22 @@
+POST http://localhost:3003/api/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "username": "Test Username",
+  "password": "thepassword"
+}
+
+###
+POST http://localhost:3003/api/blogs/ HTTP/1.1
+content-type: application/json
+Authorization: bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IlRlc3QgVXNlcm5hbWUiLCJpZCI6IjYyM2JmN2U3NzEzN2Q4NWI1ZmJiZmE2ZiIsImlhdCI6MTY0ODEyMTQ3MCwiZXhwIjoxNjQ4MTI1MDcwfQ.aNdpodf-onbzK0KpiW5nMEWFRZCpwyiYuIYkB_kJVvY
+
+{
+    "title": "This is a test8",
+    "author": "Test Author8",
+    "url": "www.testurl6.com"
+    # "likes": 100
+}
+
+###
+GET http://localhost:3003/api/blogs/

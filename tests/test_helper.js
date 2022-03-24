@@ -1,4 +1,7 @@
 const Blog = require('../models/blog')
+const User = require('../models/user')
+const jwt = require('jsonwebtoken')
+require('dotenv').config()
 
 const initialBlogs = [
   {
@@ -28,8 +31,26 @@ const blogsInDb = async () => {
   return blogs.map(blog => blog.toJSON())
 }
 
+const usersInDb = async () => {
+  const users = await User.find({})
+  return users.map(user => user.toJSON())
+}
+
+const getToken = async (prefix = 'Bearer ') => {
+  const user = await User.findOne({})
+
+  const userForToken = { username: user.username , id: user._id }
+
+  // eslint-disable-next-line no-undef
+  const token = jwt.sign(userForToken, process.env.SECRET, { expiresIn: 60*60 })
+
+  return `${prefix}${token}`
+}
+
 module.exports = {
   initialBlogs,
   nonExistingId,
-  blogsInDb
+  blogsInDb,
+  usersInDb,
+  getToken
 }

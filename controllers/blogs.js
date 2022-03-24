@@ -1,13 +1,19 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
+const User = require('../models/user')
+const { userExtractor } = require('../utils/middleware')
 require('express-async-errors')
+require('dotenv').config()
 
 blogsRouter.get('/', async (request, response) => {
-  const blogs = await Blog.find({})
+  const blogs = await Blog
+    .find({}).populate('user', { username: 1, name: 1 })
   response.json(blogs)
 })
 
-blogsRouter.post('/', async (request, response, next) => {
+blogsRouter.post('/', userExtractor, async (request, response, next) => {
+  const user = await User.findById(request.user.id)
+
   if (!request.body.title) {
     next({
       name: 'ValidationError',
@@ -24,20 +30,33 @@ blogsRouter.post('/', async (request, response, next) => {
     return
   }
 
-  const blog = new Blog(request.body)
+  const blog = new Blog({
+    title: request.body.title,
+    author: request.body.author,
+    url: request.body.url,
+    likes: request.body.likes,
+    user: user._id
+  })
 
   const savedBlog = await blog.save()
+  user.blogs = user.blogs.concat(savedBlog._id)
+  await user.save()
+
   response.status(201).json(savedBlog)
 })
 
-blogsRouter.delete('/:id', async (request, response, next) => {
-  const removedBlog = await Blog.findByIdAndRemove(request.params.id)
-
-  if (removedBlog) {
-    response.status(204).end()
-  } else {
+blogsRouter.delete('/:id', userExtractor, async (request, response, next) => {
+  const blogToRemove = await Blog.findById(request.params.id)
+  if (!blogToRemove) {
     next()
+    return
   }
+  else if (blogToRemove.user.toString() !== request.user.id.toString()) {
+    return response.status(403).json({ error: 'you do not have permission to delete this blog' })
+  }
+
+  await Blog.remove(blogToRemove)
+  response.status(204).end()
 })
 
 blogsRouter.put('/:id', async (request, response, next) => {

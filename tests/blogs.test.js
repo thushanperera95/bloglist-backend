@@ -2,13 +2,31 @@ const mongoose = require('mongoose')
 const supertest = require('supertest')
 const app = require('../app')
 const Blog = require('../models/blog')
+const User = require('../models/user')
 const helper = require('./test_helper')
+const bcrypt = require('bcrypt')
 
 const api = supertest(app)
 
 beforeEach(async () => {
+  await User.deleteMany({})
   await Blog.deleteMany({})
-  await Blog.insertMany(helper.initialBlogs)
+
+  const passwordHash = await bcrypt.hash('secret', 10)
+  const user = new User({ username: 'root', name: 'root', passwordHash })
+
+  const savedUser = await user.save()
+
+  // associate above test user to all initial blogs
+  helper.initialBlogs.forEach(b => {
+    b.user = savedUser._id
+  })
+
+  const savedBlogs = await Blog.insertMany(helper.initialBlogs)
+
+  // associate initial blogs to test user
+  savedUser.blogs = savedBlogs.map(blog => blog._id)
+  savedUser.save()
 })
 
 describe('updating likes of a blog', () => {
@@ -16,9 +34,11 @@ describe('updating likes of a blog', () => {
 
     const nonExistingId = await helper.nonExistingId()
 
-    await api
+    const response = await api
       .put(`/api/blogs/${nonExistingId}`)
       .expect(404)
+
+    expect(response.body.error).toContain('unknown endpoint')
   })
 
   test('succeeds, if a blog exists for the given id', async () => {
@@ -38,25 +58,46 @@ describe('updating likes of a blog', () => {
 
 describe('deletion of a blog', () => {
   test('fails with status code 404, if a blog does not exist for the given id', async () => {
-
     const nonExistingId = await helper.nonExistingId()
 
-    await api
+    const token = await helper.getToken()
+
+    const response = await api
       .delete(`/api/blogs/${nonExistingId}`)
+      .set('Authorization', token)
       .expect(404)
 
     const blogsInDb = await helper.blogsInDb()
     expect(blogsInDb).toHaveLength(helper.initialBlogs.length)
+
+    expect(response.body.error).toContain('unknown endpoint')
   })
 
   test('succeeds, if a blog exists for the given id', async () => {
     const blogsInDb = await helper.blogsInDb()
+
+    const token = await helper.getToken()
+
     await api
       .delete(`/api/blogs/${blogsInDb[0].id}`)
+      .set('Authorization', token)
       .expect(204)
 
     const blogsInDbPostDelete = await helper.blogsInDb()
     expect(blogsInDbPostDelete).toHaveLength(helper.initialBlogs.length - 1)
+  })
+
+  test('fails with status code 401, if an authorization token is not provided', async () => {
+    const blogsInDb = await helper.blogsInDb()
+
+    const response = await api
+      .delete(`/api/blogs/${blogsInDb[0].id}`)
+      .expect(401)
+
+    const blogsInDbPostDelete = await helper.blogsInDb()
+    expect(blogsInDbPostDelete).toHaveLength(helper.initialBlogs.length)
+
+    expect(response.body.error).toContain('token missing or invalid')
   })
 })
 
@@ -70,7 +111,7 @@ describe('when there is initially some blogs saved', () => {
     expect(response.body).toHaveLength(helper.initialBlogs.length)
   })
 
-  test('all retrieved blogs have ids', async() => {
+  test('all retrieved blogs have ids and created user ids', async() => {
     const response = await api
       .get('/api/blogs')
       .expect(200)
@@ -78,6 +119,7 @@ describe('when there is initially some blogs saved', () => {
 
     response.body.forEach(async (blog) => {
       expect(blog.id).toBeDefined()
+      expect(blog.user).toBeDefined()
     })
   })
 })
@@ -91,8 +133,11 @@ describe('addition of a new blog', () => {
       likes: 50
     }
 
+    const token = await helper.getToken()
+
     await api
       .post('/api/blogs')
+      .set('Authorization', token)
       .send(newBlog)
       .expect(201)
       .expect('Content-Type', /application\/json/)
@@ -111,8 +156,11 @@ describe('addition of a new blog', () => {
       url: 'www.thisispartofunittest2.com'
     }
 
+    const token = await helper.getToken()
+
     const response = await api
       .post('/api/blogs')
+      .set('Authorization', token)
       .send(newBlog)
       .expect(201)
       .expect('Content-Type', /application\/json/)
@@ -127,13 +175,16 @@ describe('addition of a new blog', () => {
       likes: 10
     }
 
+    const token = await helper.getToken()
+
     const response = await api
       .post('/api/blogs')
+      .set('Authorization', token)
       .send(newBlog)
       .expect(400)
       .expect('Content-Type', /application\/json/)
 
-    expect(response.body.error).toEqual('A blog must contain a title')
+    expect(response.body.error).toContain('A blog must contain a title')
   })
 
   test('fails with status code 400, if it does not have a url', async () => {
@@ -143,17 +194,39 @@ describe('addition of a new blog', () => {
       likes: 10
     }
 
+    const token = await helper.getToken()
+
     const response = await api
       .post('/api/blogs')
+      .set('Authorization', token)
       .send(newBlog)
       .expect(400)
       .expect('Content-Type', /application\/json/)
 
-    expect(response.body.error).toEqual('A blog must contain a url')
+    expect(response.body.error).toContain('A blog must contain a url')
+  })
+
+  test('fails with status code 401, if an authorization token is not provided', async () => {
+    const newBlog = {
+      title: 'Unit Test Title',
+      author: 'Unit Test Author',
+      url: 'www.thisispartofunittest.com',
+      likes: 50
+    }
+
+    const response = await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(401)
+      .expect('Content-Type', /application\/json/)
+
+    const blogsInDb = await helper.blogsInDb()
+    expect(blogsInDb).toHaveLength(helper.initialBlogs.length)
+
+    expect(response.body.error).toContain('token missing or invalid')
   })
 })
 
 afterAll(async () => {
-  await Blog.deleteMany({})
   mongoose.connection.close()
 })
