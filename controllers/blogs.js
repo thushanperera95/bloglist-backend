@@ -51,7 +51,7 @@ blogsRouter.delete('/:id', userExtractor, async (request, response, next) => {
     next()
     return
   }
-  else if (blogToRemove.user.toString() !== request.user.id.toString()) {
+  else if (blogToRemove.user && (blogToRemove.user.toString() !== request.user?.id.toString())) {
     return response.status(403).json({ error: 'you do not have permission to delete this blog' })
   }
 
