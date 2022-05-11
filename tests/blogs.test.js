@@ -56,6 +56,51 @@ describe('updating likes of a blog', () => {
   })
 })
 
+describe('adding comments to a blog', () => {
+  test('fails with status code 400, if request does not contain a comment', async () => {
+
+    const blogsInDb = await helper.blogsInDb()
+
+    const response = await api
+      .post(`/api/blogs/${blogsInDb[0].id}/comments`)
+      .expect(400)
+
+    expect(response.body.error).toContain('Must contain a comment')
+  })
+
+  test('succeeds with a single comment', async () => {
+    const blogsInDb = await helper.blogsInDb()
+
+    const blogToUpdate = blogsInDb[0]
+
+    const response = await api
+      .post(`/api/blogs/${blogToUpdate.id}/comments`)
+      .send({ comment: 'test comment' })
+      .expect(201)
+
+    expect(response.body.comments[0]).toEqual('test comment')
+  })
+
+  test('succeeds with multiple comments', async () => {
+    const blogsInDb = await helper.blogsInDb()
+
+    const blogToUpdate = blogsInDb[0]
+
+    let response = await api
+      .post(`/api/blogs/${blogToUpdate.id}/comments`)
+      .send({ comment: 'test comment' })
+      .expect(201)
+
+    response = await api
+      .post(`/api/blogs/${blogToUpdate.id}/comments`)
+      .send({ comment: 'test comment2' })
+      .expect(201)
+
+    expect(response.body.comments[0]).toEqual('test comment')
+    expect(response.body.comments[1]).toEqual('test comment2')
+  })
+})
+
 describe('deletion of a blog', () => {
   test('fails with status code 404, if a blog does not exist for the given id', async () => {
     const nonExistingId = await helper.nonExistingId()
