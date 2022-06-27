@@ -100,6 +100,11 @@ blogsRouter.put('/:id', async (request, response, next) => {
     { new: true }
   )
 
+  if (!updatedBlog) {
+    next()
+    return
+  }
+
   const enrichedSavedBlog = await updatedBlog.populate('user', {
     username: 1,
     name: 1,

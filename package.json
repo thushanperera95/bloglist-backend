@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Full Stack Open 2022 - Part 4 Exercises",
   "main": "index.js",
+  "jest": {
+    "testPathIgnorePatterns": ["controllers/test.js"]
+  },
   "scripts": {
     "test": "cross-env NODE_ENV=test jest --verbose --runInBand --forceExit",
     "start": "cross-env NODE_ENV=production node index.js",
